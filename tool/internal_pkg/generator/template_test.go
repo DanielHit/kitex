@@ -15,7 +15,11 @@
 package generator
 
 import (
+	"bytes"
+	"fmt"
+	"os"
 	"testing"
+	"text/template"
 
 	"github.com/cloudwego/kitex/internal/test"
 )
@@ -29,6 +33,57 @@ func TestNilSafe(t *testing.T) {
 
 	err = q.FromJSONFile(fn)
 	test.Assert(t, err == nil, err)
+}
+
+var tmpl = `package {{ .Package }}
+
+import (
+	{{ range $_, $v := .Import -}}
+		"{{ $v }}"
+	{{ end -}}
+)
+
+func main() {
+	fmt.Println("{{ .Content }}")
+	for i := 0; i <  {{ .LoopTimes}};  i ++ {
+		fmt.Println("{{ .Value }}")
+	}
+}`
+
+func TestWriteFile(t *testing.T) {
+	b := &bytes.Buffer{}
+
+	data := struct {
+		Package   string
+		LoopTimes int64
+		Value     string
+		Import    []string
+		Content   string
+	}{
+		Package:   "main",
+		LoopTimes: 10,
+		Value:     "what a beautiful world!",
+		Import:    []string{"fmt"},
+		Content:   "Hello, World!",
+	}
+
+	err := template.Must(template.New("test").Parse(tmpl)).Execute(b, data)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println(b.String())
+	helloFile, err := os.Create("/tmp/hello.go")
+	if err != nil {
+		return
+	}
+
+	// loop for write
+	_, err = helloFile.Write(b.Bytes())
+	if err != nil {
+		return
+	}
+
 }
 
 func TestMarshal(t *testing.T) {
